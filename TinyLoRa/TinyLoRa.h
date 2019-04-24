@@ -75,10 +75,13 @@ typedef enum rfm_datarates
 //#define AS920 ///< Used in Asia
 
 /* RFM Modes */
-#define MODE_SLEEP  0x00  ///<low-power mode
-#define MODE_LORA   0x80  ///<LoRa operating mode
-#define MODE_STDBY  0x01  ///<Osc. and baseband disabled
-#define MODE_TX     0x83  ///<Configures and transmits packet
+#define MODE_SLEEP                 0x00 ///<low-power mode
+#define MODE_LORA                  0x80 ///<LoRa operating mode
+#define MODE_STDBY                 0x01 ///<Osc. and baseband disabled
+#define MODE_TX                    0x83 ///<Configures and transmits packet
+#define MODE_PA_SELECT             0x80 ///<PA Enable
+#define MODE_PA_DAC_DISABLE        0x04 ///<PA DAC Disable
+#define MODE_PA_DAC_ENABLE         0x07 ///<PA DAC Enable
 
 /* RFM Registers */
 #define REG_PA_CONFIG              0x09 ///<PA selection and Output Power control
@@ -90,9 +93,8 @@ typedef enum rfm_datarates
 #define REG_FEI_LSB                0x1E ///<Info from Prev. Header
 #define REG_FEI_MSB                0x1D ///<Number of received bytes
 #define REG_MODEM_CONFIG           0x26 ///<Modem configuration register
+#define REG_PA_DAC                 0x4d ///<Higher power settings of the PA -Adds 3dBm to all power levels
 
-/* PA_CONFIG */
-#define RH_RF95_PA_SELECT          0x80 ///<PA Enable
 
 /**************************************************************************/
 /*! 
@@ -115,7 +117,7 @@ class TinyLoRa
 		uint8_t randomNum;
 		int8_t _cs, _irq;
     bool _isMultiChan;
-    unsigned char _rfmMSB, _rfmMID, _rfmLSB, _sf, _bw, _modemcfg, _pw;
+    unsigned char _rfmMSB, _rfmMID, _rfmLSB, _sf, _bw, _modemcfg, _pw, _hp;
     static const unsigned char LoRa_Frequency[8][3];
 		static const unsigned char S_Table[16][16];
 		void RFM_Send_Package(unsigned char *RFM_Tx_Package, unsigned char Package_Length);

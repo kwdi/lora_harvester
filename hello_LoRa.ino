@@ -53,7 +53,7 @@ void setup()
   // set datarate
   lora.setDatarate(SF7BW125);
   // set TxPower
-  lora.setTxPower(15);
+  lora.setTxPower(23);
   if(!lora.begin())
   {
     //Serial.println("Failed");

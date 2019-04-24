@@ -271,14 +271,24 @@ void TinyLoRa::setChannel(rfm_channels_t channel) {
 /**************************************************************************/
 
 void TinyLoRa::setTxPower(int8_t power) {
-  _pw = 0;
+  _pw , _hp = 0;
   
-  if (power > 20)
-	    power = 20;
+  if (power > 23)
+	    power = 23;
 	if (power < 5)
 	    power = 5;
+  
+  if (power > 20)
+	{   
+      _hp = 1 ;
+	    power -= 3;
+	}
+	else
+	{
+	    _hp = 0;
+	}
 
-  _pw = (RH_RF95_PA_SELECT | (power - 5));
+  _pw = (MODE_PA_SELECT | (power-5));
   
 }
 
@@ -406,6 +416,12 @@ void TinyLoRa::RFM_Send_Package(unsigned char *RFM_Tx_Package, unsigned char Pac
   RFM_Write(REG_MODEM_CONFIG, _modemcfg);
 
   /* Set Tx Power */
+  if(_hp == 1){
+    RFM_Write(REG_PA_DAC, MODE_PA_DAC_ENABLE);
+  } else {
+  RFM_Write(REG_PA_DAC, MODE_PA_DAC_DISABLE);
+  }
+  
   RFM_Write(REG_PA_CONFIG, _pw);
   
   //Set payload length to the right length
