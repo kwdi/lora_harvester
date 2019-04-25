@@ -39,7 +39,8 @@ uint8_t AppSkey[16] = { 0x28, 0x60, 0x81, 0x13, 0xE1, 0x0C, 0xAB, 0xB0, 0x90, 0x
 uint8_t DevAddr[4] = { 0x26, 0x01, 0x1B, 0xCE };
 
 // Data Packet to Send to TTN
-unsigned char loraData[11] = {"hello LoRa"};
+//unsigned char loraData[11] = {"hello LoRa"};
+unsigned char loraData[2];
 
 // How many times data transfer should occur, in seconds
 const unsigned int sendInterval = 30;
@@ -77,18 +78,26 @@ void loop()
 
   float measuredvbat = analogRead(VBATPIN);
   measuredvbat *= 2;    // we divided by 2, so multiply back
-  measuredvbat *= 3.3;  // Multiply by 3.3V, our reference voltage
+  measuredvbat *= 3.15;  // Multiply by 3.3V, our reference voltage
   measuredvbat /= 1024; // convert to voltage
 
-  // If battery is below 3.5 go to sleep and check again in 8 seconds
-//  while(measuredvbat < 3.5){
-//   Watchdog.sleep(8000);
-// }
-
+   //If battery is below 3.5 go to sleep and check again in 8 seconds
+  
+  while(measuredvbat < 3.5){
+   Watchdog.sleep(8000);
+   measuredvbat = analogRead(VBATPIN);
+   measuredvbat *= 2;    // we divided by 2, so multiply back
+  measuredvbat *= 3.15;  // Multiply by 3.3V, our reference voltage
+  measuredvbat /= 1024; // convert to voltage
+ }
+  int16_t VInt = round(measuredvbat * 100);
+  loraData[0] = highByte(VInt);
+  loraData[1] = lowByte(VInt);
+  
   lora.sendData(loraData, sizeof(loraData), lora.frameCounter);
   lora.frameCounter++;
-  Watchdog.sleep(4000);
-
+  Watchdog.sleep(2000);
+  //delay(2000);
   //Serial.println("delaying...");
   //delay(sendInterval * 100);
 
