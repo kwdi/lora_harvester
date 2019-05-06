@@ -1,12 +1,24 @@
-// Kdi-ttn
+// Konstantinos Dimitrakopoulos
+// 6/5/2019
+// Version 1.01
+
+/*  Application to connect to the_things_network using the Adafruit Feather 32u4 RFM95 LoRa Radio
+    and send voltage measurements to the gateway
+*/
+
 /************************** Configuration ***********************************/
 #include <TinyLoRa.h>
 #include <SPI.h>
 #include <Adafruit_SleepyDog.h>
 
+
 #define VBATPIN A7
 
 // Radio Settings
+
+#define NumberMsg 30         /*  How many messages the radio will send before going to sleep
+                                0 for Unlimited */
+
 #define Datarate SF7BW125   /*  SF7BW125
                                 SF7BW250 
                                 SF8BW125
@@ -25,7 +37,7 @@
                                 CH7
                                 MULTI */
 
-#define TxPower 14          // 5..20
+#define TxPower 14          // 5..23
 
 
 
@@ -38,69 +50,137 @@ uint8_t AppSkey[16] = { 0x28, 0x60, 0x81, 0x13, 0xE1, 0x0C, 0xAB, 0xB0, 0x90, 0x
 // Device Address (MSB)
 uint8_t DevAddr[4] = { 0x26, 0x01, 0x1B, 0xCE };
 
-// Data Packet to Send to TTN
-//unsigned char loraData[11] = {"hello LoRa"};
-unsigned char loraData[2];
 
-// How many times data transfer should occur, in seconds
-const unsigned int sendInterval = 30;
+/************************** Code ***********************************/
+
+
+// Data Packet to Send to TTN
+unsigned char loraData[2];
 
 // Pinout for Adafruit Feather 32u4 LoRa
 TinyLoRa lora = TinyLoRa(7, 8);
 
+// Voltage Measurement
+float measuredvbat;
 
-void setup()
-{
-  //delay(2000);
-  //Serial.begin(9600);
-   
-  // Initialize pin LED_BUILTIN as an output
+
+enum State_enum {INIT, MEASURE_V, SLEEP, SEND, ERROR, STOP};
+uint8_t state = INIT;
+
+// States
+void init_state();
+void measure_v_state();
+void send_state();
+void sleep_state();
+void error_state();
+void stop_state();
+
+void setup(){  
+}
+
+void loop(){
+
+    switch(state){
+      case INIT:
+      init_state();
+      break;
+
+      case MEASURE_V:
+      measure_v_state();
+      break;
+
+      case SLEEP:
+      sleep_state();
+      break;
+
+      case SEND:
+      send_state();
+      break;
+
+      case ERROR:
+      error_state();
+      break;
+      
+      case STOP:
+      stop_state();
+      break;
+    }
+}
+
+void init_state(){
+  Watchdog.disable();
+
   pinMode(LED_BUILTIN, OUTPUT);
   
-  // Initialize LoRa
-  // define multi-channel sending
   lora.setChannel(Channel);
-  // set datarate
   lora.setDatarate(Datarate);
-  // set TxPower
   lora.setTxPower(TxPower);
 
   if(!lora.begin())
   {
-    digitalWrite(LED_BUILTIN, HIGH);
-    while(true);
+    state = ERROR;
   }
-
+  else
+  {
+    state = MEASURE_V;
+  }
 }
 
-void loop()
-{
+void measure_v_state(){
 
-  float measuredvbat = analogRead(VBATPIN);
-  measuredvbat *= 2;    // we divided by 2, so multiply back
-  measuredvbat *= 3.15;  // Multiply by 3.3V, our reference voltage
-  measuredvbat /= 1024; // convert to voltage
+  /*Meassurent happens after the voltage divider (r1,r2=100kohm)
+    so we need to muplity by 2,
+    then multiply by the reference voltage of the board 
+    and divide by 1024 to convert the bits to voltage 
+  */
+  measuredvbat = analogRead(VBATPIN);
+  measuredvbat *= 2;    
+  measuredvbat *= 3.15;  
+  measuredvbat /= 1024; 
 
-   //If battery is below 3.5 go to sleep and check again in 8 seconds
-  
-  while(measuredvbat < 3.5){
-   Watchdog.sleep(8000);
-   measuredvbat = analogRead(VBATPIN);
-   measuredvbat *= 2;    // we divided by 2, so multiply back
-  measuredvbat *= 3.15;  // Multiply by 3.3V, our reference voltage
-  measuredvbat /= 1024; // convert to voltage
- }
+  //If battery is below 3.5 go to sleep and check again in 8 seconds
+  if(measuredvbat < 3.5){
+    state = SLEEP;
+  }
+  else{
+    state = SEND;
+  }
+}
+
+void sleep_state(){
+  Watchdog.sleep(8000);
+  state = MEASURE_V;
+}
+
+void send_state(){
   int16_t VInt = round(measuredvbat * 100);
   loraData[0] = highByte(VInt);
   loraData[1] = lowByte(VInt);
-  
   lora.sendData(loraData, sizeof(loraData), lora.frameCounter);
-  lora.frameCounter++;
-  Watchdog.sleep(2000);
-  //delay(2000);
-  //Serial.println("delaying...");
-  //delay(sendInterval * 100);
+  lora.frameCounter++; 
 
-  //Serial.print("VBat: " ); Serial.println(measuredvbat);
+  if(NumberMsg !=0 && lora.frameCounter > NumberMsg){
+    state = STOP;
+  }
+  else{
+  Watchdog.sleep(4000);
+  state = MEASURE_V;
+  }
+}
 
+void stop_state(){
+  digitalWrite  (LED_BUILTIN, HIGH);
+  Watchdog.sleep(8000);
+
+  state = STOP;
+}
+
+void error_state(){
+  Watchdog.enable(4000);
+  while(true){
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(500);
+  }
 }
